@@ -1,15 +1,21 @@
 """
-Simple code for controlling RIGOL DP800 series and Keysight B2900 series PSUs. It controls two different PSUs with
-two channels each. It was created for quick setting and fine-tuning of the voltages for the four static EAMs used
-for shaping the nine mask designs (0-0, 0-1, 0-X, 1-0, 1-1, 1-X, X-0, X-1, X-X). { Used in 2-bit CAM experiment }
+Simple code for controlling RIGOL DP800 series and Keysight B2900 series PSUs. It controls two different PSUs
+with two channels each (we use only RIGOL PSUs). It was created for quick setting and fine-tuning of the voltages
+for the four static EAMs used for shaping the nine mask designs (0-0, 0-1, 0-X, 1-0, 1-1, 1-X, X-0, X-1, X-X).
+{ Used in 2-bit CAM experiment }
 
 Parameters that need to be set:
+~ accuracy -> Amount of decimal points for setting voltages
+    exp. for accuracy = 3 we get 1V / 10^3 = 1mV, so every step will be in mV
+~ set_mask_voltage -> When a mask button is clicked, this is the voltage that will be applied for the closed state
+~ close_psu_on_gui_close -> If TRUE all PSUs close their channels when GUI closes
+~ psu_current_limit -> Maximum current for all PSUs
+~ voltage_increment -> Plus/Minus (+/-) buttons steps in voltage
+    exp. if voltage_increment = 2 every press of the buttons will be 2 steps in the scale we use
 ~ psu_min_voltage -> Minimum voltage for all PSUs
 ~ psu_max_voltage -> Maximum voltage for all PSUs
-~ voltage_increment -> Plus/Minus (+/-) buttons increments
-    exp. if voltage_increment = 2 every press of the buttons will be 2 steps in the scale we use
-~ accuracy -> Amount of decimal points for setting voltages
-    exp. for accuracy = 3 we get 1V / 10^3 = 1mV, so every increment will be voltage_increment-mV
+~ on_off_button_size -> On/Off state button size (px)
+~ font_size -> Font size (px) for label fields
 ~ psu_ips -> Add the IP of the PSUs
 ~ button_mapping -> Set the mask state and all the voltages for every PSU channel
 """
@@ -19,13 +25,18 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import pyvisa as visa
 
-psu_min_voltage = 0  # V
-psu_max_voltage = 5  # V
-psu_current_limit = 0.04  # A
-voltage_increment = 1
-accuracy = 2
-
+accuracy = 2  # voltage decimal points
+set_mask_voltage = 4.5  # V
 close_psu_on_gui_close = False
+
+psu_current_limit = 0.04  # A
+voltage_increment = 1  # step size
+
+psu_min_voltage = 0  # V
+psu_max_voltage = 6  # V
+
+on_off_button_size = 16  # pixels
+font_size = 16
 
 voltage_factor = pow(10, accuracy)
 
@@ -38,10 +49,10 @@ psu_ips = {
 
 # Slider Title, Minimum Value, Maximum Value, Starting Value
 sliders_info = [
-    (f'<b>EAM 1: 0V</b>', psu_min_voltage, psu_max_voltage, 0),
-    (f'<b>EAM 2: 0V</b>', psu_min_voltage, psu_max_voltage, 0),
-    (f'<b>EAM 3: 0V</b>', psu_min_voltage, psu_max_voltage, 0),
-    (f'<b>EAM 4: 0V</b>', psu_min_voltage, psu_max_voltage, 0),
+    (f'<b>EAM 1: +0V</b>', psu_min_voltage, psu_max_voltage, 0),
+    (f'<b>EAM 2: +0V</b>', psu_min_voltage, psu_max_voltage, 0),
+    (f'<b>EAM 3: +0V</b>', psu_min_voltage, psu_max_voltage, 0),
+    (f'<b>EAM 4: +0V</b>', psu_min_voltage, psu_max_voltage, 0),
 ]
 
 rm = visa.ResourceManager()
@@ -62,15 +73,15 @@ def get_correct_psu(psu_id):
 def get_parameters(button_id):
     # state(1), state(2), PSU-1 voltage, PSU-2 voltage, PSU-3 voltage, PSU-4 voltage
     button_mapping = {
-        1: {'state1': '0', 'state2': '0', 'parameter1': 0, 'parameter2': 4, 'parameter3': 0, 'parameter4': 4},
-        2: {'state1': '0', 'state2': '1', 'parameter1': 0, 'parameter2': 4, 'parameter3': 4, 'parameter4': 0},
-        3: {'state1': '0', 'state2': 'X', 'parameter1': 0, 'parameter2': 4, 'parameter3': 4, 'parameter4': 4},
-        4: {'state1': '1', 'state2': '0', 'parameter1': 4, 'parameter2': 0, 'parameter3': 0, 'parameter4': 4},
-        5: {'state1': '1', 'state2': '1', 'parameter1': 4, 'parameter2': 0, 'parameter3': 4, 'parameter4': 0},
-        6: {'state1': '1', 'state2': 'X', 'parameter1': 4, 'parameter2': 0, 'parameter3': 4, 'parameter4': 4},
-        7: {'state1': 'X', 'state2': '0', 'parameter1': 4, 'parameter2': 4, 'parameter3': 0, 'parameter4': 4},
-        8: {'state1': 'X', 'state2': '1', 'parameter1': 4, 'parameter2': 4, 'parameter3': 4, 'parameter4': 0},
-        9: {'state1': 'X', 'state2': 'X', 'parameter1': 4, 'parameter2': 4, 'parameter3': 4, 'parameter4': 4}
+        1: {'state1': '0', 'state2': '0', 'parameter1': 0, 'parameter2': set_mask_voltage, 'parameter3': 0, 'parameter4': set_mask_voltage},
+        2: {'state1': '0', 'state2': '1', 'parameter1': 0, 'parameter2': set_mask_voltage, 'parameter3': set_mask_voltage, 'parameter4': 0},
+        3: {'state1': '0', 'state2': 'X', 'parameter1': 0, 'parameter2': set_mask_voltage, 'parameter3': set_mask_voltage, 'parameter4': set_mask_voltage},
+        4: {'state1': '1', 'state2': '0', 'parameter1': set_mask_voltage, 'parameter2': 0, 'parameter3': 0, 'parameter4': set_mask_voltage},
+        5: {'state1': '1', 'state2': '1', 'parameter1': set_mask_voltage, 'parameter2': 0, 'parameter3': set_mask_voltage, 'parameter4': 0},
+        6: {'state1': '1', 'state2': 'X', 'parameter1': set_mask_voltage, 'parameter2': 0, 'parameter3': set_mask_voltage, 'parameter4': set_mask_voltage},
+        7: {'state1': 'X', 'state2': '0', 'parameter1': set_mask_voltage, 'parameter2': set_mask_voltage, 'parameter3': 0, 'parameter4': set_mask_voltage},
+        8: {'state1': 'X', 'state2': '1', 'parameter1': set_mask_voltage, 'parameter2': set_mask_voltage, 'parameter3': set_mask_voltage, 'parameter4': 0},
+        9: {'state1': 'X', 'state2': 'X', 'parameter1': set_mask_voltage, 'parameter2': set_mask_voltage, 'parameter3': set_mask_voltage, 'parameter4': set_mask_voltage}
     }
 
     if button_id in button_mapping:
@@ -110,21 +121,16 @@ def control_psu(psu_id, value, reverse_bias):
     if psu_ips[psu_id]['model'] == 'keysight':
         if value == 0:
             PSU.write(f':SOUR:VOLT 0')
-            PSU.write(':OUTP OFF')
         else:
             if reverse_bias:
                 PSU.write(f':SOUR:VOLT -{value / voltage_factor}')
-                PSU.write(':OUTP ON')
             else:
                 PSU.write(f':SOUR:VOLT {value / voltage_factor}')
-                PSU.write(':OUTP ON')
     else:
         if value == 0:
             PSU.write(f'SOUR{psu_ips[psu_id]["channel"]}:VOLT 0')
-            PSU.write(f':OUTP CH{psu_ips[psu_id]["channel"]}, OFF')
         else:
             PSU.write(f'SOUR{psu_ips[psu_id]["channel"]}:VOLT {value / voltage_factor}')
-            PSU.write(f':OUTP CH{psu_ips[psu_id]["channel"]}, ON')
 
 
 class AppInterface(QWidget):
@@ -134,6 +140,8 @@ class AppInterface(QWidget):
         # Initialize parameters
         self.label = None
         self.mask_buttons = None
+        self.on_off_buttons = None
+        self.psu_on_off_state = None
         self.slider_labels = None
         self.reverse_checkboxes = None
         self.sliders = None
@@ -146,6 +154,8 @@ class AppInterface(QWidget):
 
     def init_ui(self):
         self.mask_buttons = []
+        self.on_off_buttons = []
+        self.psu_on_off_state = []
         self.slider_labels = []
         self.reverse_checkboxes = []
         self.sliders = []
@@ -163,6 +173,7 @@ class AppInterface(QWidget):
         left_layout = QGridLayout()
 
         self.label = QLabel('<b>Set a State</b>', self)
+        self.label.setStyleSheet(f'font-size: {font_size}px;')
         self.label.setAlignment(Qt.AlignCenter)  # Align text in the center
         left_layout.addWidget(self.label, 0, 0, 1, 3)  # Span label across all 3 columns
 
@@ -203,7 +214,18 @@ class AppInterface(QWidget):
         for title, min_val, max_val, init_val in sliders_info:
             slider_title_layout = QHBoxLayout()
 
+            on_off_button = QPushButton('', self)
+            on_off_button.setStyleSheet(f'background-color: gray; border-radius: {on_off_button_size // 2}px; padding: 0px;')
+            on_off_button.setFixedSize(on_off_button_size, on_off_button_size)
+            on_off_button.clicked.connect(lambda value, b_id=i: self.on_off_button_clicked(b_id))
+            slider_title_layout.addWidget(on_off_button)
+
+            on_off_button.setEnabled(False)
+            self.psu_on_off_state.append(0)
+            self.on_off_buttons.append(on_off_button)
+
             slider_label = QLabel(title, self)
+            slider_label.setStyleSheet(f'font-size: {font_size}px;')
             slider_label.setAlignment(Qt.AlignCenter)  # Align text in the center
             slider_title_layout.addWidget(slider_label)
             right_layout.addLayout(slider_title_layout)
@@ -211,9 +233,8 @@ class AppInterface(QWidget):
             slider_label.setEnabled(False)
             self.slider_labels.append(slider_label)
 
-            checkbox = QCheckBox('Reverse Bias')
-            checkbox.stateChanged.connect(
-                lambda value, s_label=slider_label, s_id=i: self.toggle_reverse_bias(s_label, s_id))
+            checkbox = QCheckBox('+/-')
+            checkbox.stateChanged.connect(lambda value, s_label=slider_label, s_id=i: self.toggle_reverse_bias(s_label, s_id))
             slider_title_layout.addWidget(checkbox)
 
             checkbox.setEnabled(False)
@@ -247,21 +268,21 @@ class AppInterface(QWidget):
 
             minus_button = QPushButton('-', self)
             minus_button.setFixedSize(40, 40)  # Square buttons
-            minus_button.clicked.connect(
-                lambda value, s_label=slider_label, s_id=i, s=slider: self.update_slider_value(s_label, s_id, s.value() - voltage_increment, 'button'))
+            minus_button.clicked.connect(lambda value, s_label=slider_label, s_id=i, s=slider: self.update_slider_value(s_label, s_id, s.value() - voltage_increment, 'button'))
             slider_buttons_layout.addWidget(minus_button)
 
             minus_button.setEnabled(False)
             self.minus_buttons.append(minus_button)
 
-            i += 1
             right_layout.addLayout(slider_buttons_layout)
+            i += 1
 
         # Text input field and confirm button
         limits_layout = QHBoxLayout()
 
         # Add label and text input field
         label = QLabel(f'<b>Maximum value (Limit: {psu_max_voltage}V)</b>', self)
+        label.setStyleSheet(f'font-size: {font_size}px;')
         label.setAlignment(Qt.AlignCenter)  # Align text in the center
         limits_layout.addWidget(label)
 
@@ -283,6 +304,31 @@ class AppInterface(QWidget):
 
         self.show()
 
+    def on_button_click(self, button_id):
+        parameters = get_parameters(button_id)
+        self.label.setText(f"<b>State {parameters[4]} - {parameters[5]}</b>")
+        i = 0
+        for slider in self.sliders:
+            slider.setValue(int(parameters[i] * voltage_factor))
+            i += 1
+
+    def on_off_button_clicked(self, button_id):
+        PSU = get_correct_psu(button_id)
+        if self.psu_on_off_state[button_id - 1] == 0:
+            if psu_ips[button_id]['model'] == 'keysight':
+                PSU.write(':OUTP ON')
+            else:
+                PSU.write(f':OUTP CH{psu_ips[button_id]["channel"]}, ON')
+            self.on_off_buttons[button_id - 1].setStyleSheet(f'background-color: green; border-radius: {on_off_button_size // 2}px; padding: 0px;')
+            self.psu_on_off_state[button_id - 1] = 1
+        else:
+            if psu_ips[button_id]['model'] == 'keysight':
+                PSU.write(':OUTP OFF')
+            else:
+                PSU.write(f':OUTP CH{psu_ips[button_id]["channel"]}, OFF')
+            self.on_off_buttons[button_id - 1].setStyleSheet(f'background-color: red; border-radius: {on_off_button_size // 2}px; padding: 0px;')
+            self.psu_on_off_state[button_id - 1] = 0
+
     def update_slider_value(self, label, slider_id, value, mode):
         if mode == 'button':
             self.sliders[slider_id - 1].setValue(value)
@@ -291,12 +337,13 @@ class AppInterface(QWidget):
         if reverse_bias:
             label.setText(f'<b>{label.text().split(":")[0]}: -{value / voltage_factor}V</b>')
         else:
-            label.setText(f'<b>{label.text().split(":")[0]}: {value / voltage_factor}V</b>')
+            label.setText(f'<b>{label.text().split(":")[0]}: +{value / voltage_factor}V</b>')
         control_psu(slider_id, value, reverse_bias)
 
     def toggle_reverse_bias(self, label, slider_id):
         psu_id = slider_id
         PSU = get_correct_psu(psu_id)
+        reverse_bias = self.reverse_checkboxes[slider_id - 1].isChecked()
         if psu_ips[psu_id]['model'] == 'keysight':
             PSU.write(f':SOUR:VOLT 0')
             PSU.write(':OUTP OFF')
@@ -304,15 +351,10 @@ class AppInterface(QWidget):
             PSU.write(f'SOUR{psu_ips[psu_id]["channel"]}:VOLT 0')
             PSU.write(f':OUTP CH{psu_ips[psu_id]["channel"]}, OFF')
         self.sliders[slider_id - 1].setValue(0)
-        label.setText(f'<b>{label.text().split(":")[0]}: 0V</b>')
-
-    def on_button_click(self, button_id):
-        parameters = get_parameters(button_id)
-        self.label.setText(f"<b>State {parameters[4]} - {parameters[5]}</b>")
-        i = 0
-        for slider in self.sliders:
-            slider.setValue(int(parameters[i] * voltage_factor))
-            i += 1
+        if reverse_bias:
+            label.setText(f'<b>{label.text().split(":")[0]}: -0V</b>')
+        else:
+            label.setText(f'<b>{label.text().split(":")[0]}: +0V</b>')
 
     def confirm_button_clicked(self):
         timer = QTimer(self)
@@ -334,6 +376,9 @@ class AppInterface(QWidget):
             self.label.setEnabled(True)
             for button in self.mask_buttons:
                 button.setEnabled(True)
+            for on_off_button in self.on_off_buttons:
+                on_off_button.setStyleSheet(f'background-color: red; border-radius: {on_off_button_size // 2}px; padding: 0px;')
+                on_off_button.setEnabled(True)
             for slider_label in self.slider_labels:
                 slider_label.setEnabled(True)
             for slider in self.sliders:
