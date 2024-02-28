@@ -35,8 +35,8 @@ voltage_increment = 1  # step size
 psu_min_voltage = 0  # V
 psu_max_voltage = 6  # V
 
-on_off_button_size = 16  # pixels
-font_size = 16
+on_off_button_size = 24  # pixels
+font_size = 20
 
 voltage_factor = pow(10, accuracy)
 
